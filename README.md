@@ -1,6 +1,6 @@
 # ☀️ 아침 브리핑
 
-매일 아침 카카오톡 "나에게 보내기"로 오늘의 날씨와 주요 뉴스를 받는 프로그램.
+매일 아침 카카오톡 "나에게 보내기"로 오늘의 날씨와 주요 뉴스를 AI 3줄 요약으로 받는 프로그램.
 
 ## 진행 상황
 - [x] 1단계: 파이썬 준비
@@ -11,9 +11,12 @@
   - 실행 설정: `.github/workflows/briefing.yml` (매일 07:00 KST, GitHub 사정으로 몇 분~수십 분 늦을 수 있음)
   - 지금 바로 실행: 저장소 [Actions] → [아침 브리핑] → [Run workflow]
   - 요약 페이지: https://noregret99.github.io/morning-briefing/
-  - 금고(Secrets): `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `KAKAO_REFRESH_TOKEN`, `GH_PAT`
-  - ⚠️ `GH_PAT`는 만료일이 있음 → 만료 전에 새로 만들어 금고 값 교체
+  - 금고(Secrets): `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `KAKAO_REFRESH_TOKEN`, `GH_PAT`, `ANTHROPIC_API_KEY`
+  - ⚠️ `GH_PAT`는 "만료 없음"으로 만듦 → 프로젝트를 그만두면 GitHub [Developer settings]에서 꼭 삭제
   - 실패하면 GitHub이 가입 이메일로 알림을 보냄
+- [x] 추가: AI 3줄 요약 (2026-11-03, `summarize.py`, Claude `claude-haiku-5-5`)
+  - 카톡 = 인사말 + AI 3줄 요약 (메시지 1개), 요약 페이지 맨 위에 🤖 AI 요약 칸
+  - 비용: 1회 약 $0.00056 (한 달 약 25원). 크레딧은 **console.anthropic.com**에서 충전 (claude.ai 결제와 별개 지갑!)
 
 ## 파일별 역할
 | 파일 | 하는 일 |
@@ -21,11 +24,12 @@
 | `briefing.py` | **메인.** 날씨·뉴스 수집 → AI 3줄 요약 → 카톡 메시지 1개(인사 + AI 요약) 전송 + 요약 페이지 생성. **AI 실패 시 예전 방식**(메시지 1: 날씨 + 주요 뉴스, 메시지 2: 경제 뉴스)으로 자동 대체 |
 | `weather.py` | 김해 날씨 가져오기 (Open-Meteo, 키 필요 없음) |
 | `news.py` | 구글 뉴스 RSS에서 주요·경제 헤드라인(제목·링크·언론사·설명) 10개씩 가져오기 (키 필요 없음). 설명 = 같은 사건을 다룬 다른 언론사 제목 최대 3개 (기사 본문 아님, AI 요약 참고용). 카톡용은 45자 넘으면 자르고 200자 안에 들어가는 만큼만 담음 |
-| `summarize.py` | 날씨·뉴스(+관련 보도)를 Claude(`claude-haiku-5-5`)에 보내 3줄 브리핑(170자 이하)을 받음. 규칙에 안 맞으면 "줄여줘"로 1번 재시도, 그래도 안 되면 오류 → 기존 방식으로 대체. 1회 약 $0.0006. 단독 테스트: `python summarize.py` (카톡 전송 안 함). 🔒 `ANTHROPIC_API_KEY` 필요 |
+| `summarize.py` | 날씨·뉴스(+관련 보도)를 Claude(`claude-haiku-5-5`)에 보내 3줄 브리핑(155자 이하)을 받음. 규칙에 안 맞으면 "줄여줘"로 1번 재시도, 그래도 안 되면 오류 → 기존 방식으로 대체. 1회 약 $0.0006. 단독 테스트: `python summarize.py` (카톡 전송 안 함). 🔒 `ANTHROPIC_API_KEY` 필요 |
 | `page.py` | 카톡 [자세히 보기]가 열 요약 페이지 `site/index.html` 생성 (맨 위 🤖 AI 요약 칸 + 뉴스 전체 + 원문 링크. AI 실패 시 AI 칸 생략). ⚠️ 공개 페이지라 개인 정보 금지 |
 | `kakao_send.py` | 토큰을 새로 받은 뒤 카톡 전송 |
 | `kakao_auth.py` | **처음 한 번만.** 카카오 로그인 → 토큰을 `kakao_token.json`에 저장 |
-| `.env` | 🔒 비밀: 카카오 REST API 키, 클라이언트 시크릿 (GitHub에 안 올라감) |
+| `.env` | 🔒 비밀: 카카오 REST API 키, 클라이언트 시크릿, Claude API 키 (GitHub에 안 올라감) |
+| `requirements.txt` | GitHub 컴퓨터가 설치할 도구 목록 (새 도구를 쓰면 여기에도 꼭 추가!) |
 | `kakao_token.json` | 🔒 비밀: 카카오 토큰 (GitHub에 안 올라감) |
 | `.gitignore` | GitHub에 올리면 안 되는 파일 목록 |
 
@@ -38,9 +42,16 @@ python briefing.py             # 실제 전송
 ## 🔧 고장 났을 때 확인 순서
 1. `python weather.py` → 날씨 글이 나오면 날씨는 정상
 2. `python news.py` → 뉴스 제목이 나오면 뉴스는 정상
-3. `python kakao_send.py` → 테스트 메시지가 오면 카톡은 정상
-4. 모두 정상이면 `python briefing.py --dry-run` 으로 조립 부분 확인
-5. "토큰 갱신 실패"가 나오면 → `python kakao_auth.py` 다시 실행 (리프레시 토큰은 약 2개월 유효)
+3. `python summarize.py` → 3줄 요약이 나오면 AI는 정상
+4. `python kakao_send.py` → 테스트 메시지가 오면 카톡은 정상
+5. 모두 정상이면 `python briefing.py --dry-run` 으로 조립 부분 확인
+6. "토큰 갱신 실패"가 나오면 → `python kakao_auth.py` 다시 실행 (리프레시 토큰은 약 2개월 유효)
+
+카톡 인사말에 **"⚠️AI요약 실패"**가 보이면 (GitHub [Actions] 실행 기록에서 원인 확인):
+- `credit balance is too low` → console.anthropic.com 에서 크레딧 충전
+- `authentication_error` / `invalid x-api-key` → API 키 확인 (.env, 금고 `ANTHROPIC_API_KEY`)
+- `Could not resolve authentication method` → 금고나 자동 실행 설정에 키가 연결 안 됨
+- `규칙에 맞는 요약을 못 받았어요` → AI가 너무 길게 씀. 하루 이틀 계속되면 `summarize.py` 지시문 조정
 
 자주 나오는 카카오 오류:
 - `KOE006`: 리다이렉트 URI 불일치 → 카카오 개발자 사이트에 `http://localhost:5000/callback` 정확히 등록됐는지 확인
@@ -49,6 +60,7 @@ python briefing.py             # 실제 전송
 
 ## 실패 대비
 - 날씨나 뉴스 하나가 실패해도 나머지는 보내고 "⚠️ 못 가져왔어요"라고 표시
+- AI 요약이 실패하면 예전 방식(메시지 2개)으로 보내고, 인사말 줄에 "⚠️AI요약 실패" 표시
 - 카톡 전송 자체가 실패하면 프로그램이 오류로 끝남 → (5단계) GitHub이 실패 메일 발송
 - 모든 실행 기록은 `[시:분:초]`와 함께 화면(로그)에 남음
 
