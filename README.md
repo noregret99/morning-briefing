@@ -7,7 +7,13 @@
 - [x] 2단계: 카카오 앱 등록 + 테스트 메시지
 - [x] 3단계: 날씨 (김해, Open-Meteo)
 - [x] 4단계: 뉴스 (구글 뉴스 RSS — 주요 + 경제, 메시지 2개로 나눠 전송)
-- [ ] 5단계: GitHub Actions로 매일 자동 실행 + 토큰 자동 갱신
+- [x] 5단계: GitHub Actions로 매일 자동 실행 + 토큰 자동 갱신 + 요약 페이지
+  - 실행 설정: `.github/workflows/briefing.yml` (매일 07:00 KST, GitHub 사정으로 몇 분~수십 분 늦을 수 있음)
+  - 지금 바로 실행: 저장소 [Actions] → [아침 브리핑] → [Run workflow]
+  - 요약 페이지: https://noregret99.github.io/morning-briefing/
+  - 금고(Secrets): `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `KAKAO_REFRESH_TOKEN`, `GH_PAT`
+  - ⚠️ `GH_PAT`는 만료일이 있음 → 만료 전에 새로 만들어 금고 값 교체
+  - 실패하면 GitHub이 가입 이메일로 알림을 보냄
 
 ## 파일별 역할
 | 파일 | 하는 일 |
