@@ -1,0 +1,82 @@
+# 매일 아침 7시(한국 시간)에 GitHub 컴퓨터가 briefing.py를 실행하는 설정
+name: 아침 브리핑
+
+on:
+  schedule:
+    - cron: "0 22 * * *"   # GitHub은 세계 표준시(UTC) 기준 → 22시 = 한국 아침 7시
+  workflow_dispatch:         # Actions 화면에서 [Run workflow] 버튼으로 바로 실행 가능
+
+permissions:
+  contents: read
+  pages: write      # 요약 페이지 올리기
+  id-token: write   # 요약 페이지 올리기 (본인 확인용)
+  actions: write    # 자동 실행이 꺼지지 않게 유지
+
+concurrency:
+  group: briefing
+  cancel-in-progress: false
+
+jobs:
+  briefing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 필요한 도구 설치
+        run: pip install -r requirements.txt
+
+      - name: 금고의 리프레시 토큰으로 토큰 파일 만들기
+        env:
+          KAKAO_REFRESH_TOKEN: ${{ secrets.KAKAO_REFRESH_TOKEN }}
+        run: python -c "import json, os; json.dump({'refresh_token': os.environ['KAKAO_REFRESH_TOKEN']}, open('kakao_token.json', 'w'))"
+
+      - name: 날씨·뉴스 모아서 카톡 보내기
+        env:
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+          KAKAO_CLIENT_SECRET: ${{ secrets.KAKAO_CLIENT_SECRET }}
+          BRIEFING_PAGE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+        run: python briefing.py
+
+      # 카카오가 새 리프레시 토큰을 줬으면(약 1개월마다) 금고 값을 새것으로 교체 → 토큰 자동 갱신
+      - name: 리프레시 토큰이 바뀌었으면 금고 갱신
+        if: always()
+        env:
+          OLD_TOKEN: ${{ secrets.KAKAO_REFRESH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          python -c "import json, os; t = json.load(open('kakao_token.json'))['refresh_token']; open('new_token.txt', 'w').write(t if t != os.environ['OLD_TOKEN'] else '')"
+          if [ -s new_token.txt ]; then
+            gh secret set KAKAO_REFRESH_TOKEN --repo "$GITHUB_REPOSITORY" < new_token.txt
+            echo "🔄 리프레시 토큰을 새것으로 교체했어요."
+          else
+            echo "리프레시 토큰은 그대로예요 (교체 필요 없음)."
+          fi
+          rm -f new_token.txt
+
+      # 공개 저장소는 60일 동안 활동이 없으면 예약 실행이 자동으로 꺼짐 → 매일 다시 켜 둠
+      # (아이디어 출처: github.com/gautamkrishnar/keepalive-workflow)
+      - name: 자동 실행 꺼지지 않게 유지
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/briefing.yml/enable"
+
+      - name: 요약 페이지 준비
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy-page:
+    needs: briefing
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: 요약 페이지 공개
+        id: deploy
+        uses: actions/deploy-pages@v4
