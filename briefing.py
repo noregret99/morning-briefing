@@ -65,9 +65,10 @@ if ai_summary:
         log(f"⚠️ AI 요약 메시지가 {LIMIT}자를 넘어서 예전 방식으로 대체해요.")
         messages = []
 
-if not messages:  # AI 요약이 없거나 실패 → 예전 방식
+if not messages:  # AI 요약이 없거나 실패 → 예전 방식 + 실패했다고 알림
     log("예전 방식(메시지 2개)으로 보내요.")
-    message1 = greeting + f"{weather}\n\n"
+    # 뉴스 자리를 덜 차지하도록 인사말 줄 끝에 짧게 붙임 (자세한 원인은 GitHub 실행 기록에)
+    message1 = f"☀️ 좋은 아침! {date_text} · ⚠️AI요약 실패\n\n{weather}\n\n"
     message1 += format_news("주요", "📰", top_news, LIMIT - len(message1))
     messages = [message1, format_news("경제", "💰", economy_news, LIMIT)]
 
