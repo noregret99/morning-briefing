@@ -32,7 +32,8 @@ jobs:
       - name: 금고의 리프레시 토큰으로 토큰 파일 만들기
         env:
           KAKAO_REFRESH_TOKEN: ${{ secrets.KAKAO_REFRESH_TOKEN }}
-        run: python -c "import json, os; json.dump({'refresh_token': os.environ['KAKAO_REFRESH_TOKEN']}, open('kakao_token.json', 'w'))"
+        run: |
+          python -c "import json, os; json.dump({'refresh_token': os.environ['KAKAO_REFRESH_TOKEN']}, open('kakao_token.json', 'w'))"
 
       - name: 날씨·뉴스 모아서 카톡 보내기
         env:
