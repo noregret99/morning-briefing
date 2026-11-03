@@ -6,14 +6,15 @@
 - [x] 1단계: 파이썬 준비
 - [x] 2단계: 카카오 앱 등록 + 테스트 메시지
 - [x] 3단계: 날씨 (김해, Open-Meteo)
-- [ ] 4단계: 뉴스
+- [x] 4단계: 뉴스 (구글 뉴스 RSS — 주요 + 경제, 메시지 2개로 나눠 전송)
 - [ ] 5단계: GitHub Actions로 매일 자동 실행 + 토큰 자동 갱신
 
 ## 파일별 역할
 | 파일 | 하는 일 |
 |---|---|
-| `briefing.py` | **메인.** 날씨·뉴스를 모아 카톡으로 보냄 |
+| `briefing.py` | **메인.** 메시지 1(날씨 + 주요 뉴스), 메시지 2(경제 뉴스)를 만들어 카톡으로 보냄 |
 | `weather.py` | 김해 날씨 가져오기 (Open-Meteo, 키 필요 없음) |
+| `news.py` | 구글 뉴스 RSS에서 주요·경제 헤드라인 가져오기 (키 필요 없음). 제목은 45자 넘으면 자르고, 200자 안에 들어가는 만큼만 담음 |
 | `kakao_send.py` | 토큰을 새로 받은 뒤 카톡 전송 |
 | `kakao_auth.py` | **처음 한 번만.** 카카오 로그인 → 토큰을 `kakao_token.json`에 저장 |
 | `.env` | 🔒 비밀: 카카오 REST API 키, 클라이언트 시크릿 (GitHub에 안 올라감) |
@@ -28,9 +29,10 @@ python briefing.py             # 실제 전송
 
 ## 🔧 고장 났을 때 확인 순서
 1. `python weather.py` → 날씨 글이 나오면 날씨는 정상
-2. `python kakao_send.py` → 테스트 메시지가 오면 카톡은 정상
-3. 둘 다 정상이면 `python briefing.py --dry-run` 으로 조립 부분 확인
-4. "토큰 갱신 실패"가 나오면 → `python kakao_auth.py` 다시 실행 (리프레시 토큰은 약 2개월 유효)
+2. `python news.py` → 뉴스 제목이 나오면 뉴스는 정상
+3. `python kakao_send.py` → 테스트 메시지가 오면 카톡은 정상
+4. 모두 정상이면 `python briefing.py --dry-run` 으로 조립 부분 확인
+5. "토큰 갱신 실패"가 나오면 → `python kakao_auth.py` 다시 실행 (리프레시 토큰은 약 2개월 유효)
 
 자주 나오는 카카오 오류:
 - `KOE006`: 리다이렉트 URI 불일치 → 카카오 개발자 사이트에 `http://localhost:5000/callback` 정확히 등록됐는지 확인

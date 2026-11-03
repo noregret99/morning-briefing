@@ -9,6 +9,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 
 from kakao_send import send_to_me
+from news import get_news_text
 from weather import get_weather_text
 
 KST = timezone(timedelta(hours=9))  # 한국 시간 (GitHub 서버는 다른 나라 시간이라 직접 지정)
@@ -32,17 +33,26 @@ def safe(name, get_text):
 
 
 dry_run = "--dry-run" in sys.argv
+LIMIT = 200  # 카톡 텍스트 메시지 최대 글자 수
 
 today = datetime.now(KST)
 header = f"☀️ 좋은 아침! {today.month}/{today.day}({DAYS[today.weekday()]})"
 
-message = f"{header}\n\n{safe('날씨', get_weather_text)}"
+# 메시지 1: 날씨 + 주요 뉴스 (날씨를 넣고 남은 글자 수만큼 뉴스를 채움)
+message1 = f"{header}\n\n{safe('날씨', get_weather_text)}\n\n"
+room = LIMIT - len(message1)
+message1 += safe("주요 뉴스", lambda: get_news_text("주요", "📰", room))
 
-log(f"완성된 메시지 ({len(message)}자 / 최대 200자):\n{message}")
-if len(message) > 200:
-    raise SystemExit("❌ 200자를 넘어서 카톡으로 보낼 수 없어요.")
+# 메시지 2: 경제 뉴스
+message2 = safe("경제 뉴스", lambda: get_news_text("경제", "💰", LIMIT))
+
+for number, message in enumerate([message1, message2], start=1):
+    log(f"메시지 {number} ({len(message)}자 / 최대 {LIMIT}자):\n{message}")
+    if len(message) > LIMIT:
+        raise SystemExit(f"❌ 메시지 {number}이 {LIMIT}자를 넘어서 보낼 수 없어요.")
 
 if dry_run:
     log("🧪 미리보기 모드라서 전송하지 않았어요.")
 else:
-    send_to_me(message)
+    send_to_me(message1)
+    send_to_me(message2)
