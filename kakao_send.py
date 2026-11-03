@@ -16,9 +16,9 @@ REST_API_KEY = os.getenv("KAKAO_REST_API_KEY")
 CLIENT_SECRET = os.getenv("KAKAO_CLIENT_SECRET")
 TOKEN_FILE = "kakao_token.json"
 
-# 메시지 아래 '자세히 보기' 버튼이 열 주소.
+# 메시지 아래 '자세히 보기' 버튼이 열 주소. (5단계에서 요약 페이지 주소로 설정, 없으면 네이버)
 # 카카오 개발자 사이트 [제품 링크 관리] > [웹 도메인]에 등록한 도메인이어야 함
-LINK_URL = "https://www.naver.com"
+LINK_URL = os.getenv("BRIEFING_PAGE_URL") or "https://www.naver.com"
 
 
 def get_access_token():

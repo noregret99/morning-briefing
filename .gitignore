@@ -2,3 +2,5 @@
 .env
 kakao_token.json
 __pycache__/
+# 요약 페이지는 매일 GitHub이 새로 만들어서 올리므로 저장소에는 안 넣음
+site/

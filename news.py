@@ -11,31 +11,37 @@ FEEDS = {
     "주요": "https://news.google.com/rss?hl=ko&gl=KR&ceid=KR:ko",
     "경제": "https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=ko&gl=KR&ceid=KR:ko",
 }
-MAX_TITLE = 45  # 제목이 너무 길면 이 글자 수에서 자르고 "…" 붙임
+MAX_TITLE = 45  # 카톡에서는 제목이 너무 길면 이 글자 수에서 자르고 "…" 붙임
 
 
-def get_headlines(topic, count=5):
-    """분야(topic)의 최신 뉴스 제목 목록을 가져온다."""
+def get_headlines(topic, count=10):
+    """분야(topic)의 최신 뉴스를 [{제목, 링크, 언론사}, ...] 목록으로 가져온다."""
     response = requests.get(FEEDS[topic], timeout=10)
     response.raise_for_status()  # 사이트가 오류를 돌려주면 여기서 멈춤
     root = ET.fromstring(response.content)
 
-    titles = []
+    items = []
     for item in root.iter("item"):
-        title = item.findtext("title", "").rsplit(" - ", 1)[0].strip()  # 끝의 " - 언론사명" 제거
+        source = item.findtext("source", "").strip()
+        title = item.findtext("title", "").strip()
+        if source and title.endswith(f" - {source}"):
+            title = title[: -len(f" - {source}")]  # 끝의 " - 언론사명" 제거
         if title:
-            titles.append(title)
-        if len(titles) == count:
+            items.append({"title": title, "link": item.findtext("link", ""), "source": source})
+        if len(items) == count:
             break
-    if not titles:
+    if not items:
         raise ValueError("뉴스 제목을 하나도 못 찾았어요")
-    return titles
+    return items
 
 
-def get_news_text(topic, emoji, max_chars):
-    """뉴스 제목들을 max_chars 글자 안에 들어가는 만큼만 담아 글로 만든다."""
+def format_news(topic, emoji, items, max_chars):
+    """카톡용: 뉴스 제목들을 max_chars 글자 안에 들어가는 만큼만 담아 글로 만든다."""
+    if not items:
+        return f"⚠️ 오늘은 {topic} 뉴스를 못 가져왔어요."
     text = f"{emoji} {topic} 뉴스"
-    for title in get_headlines(topic):
+    for item in items:
+        title = item["title"]
         if len(title) > MAX_TITLE:
             title = title[:MAX_TITLE - 1] + "…"
         line = f"\n• {title}"
@@ -46,6 +52,6 @@ def get_news_text(topic, emoji, max_chars):
 
 
 if __name__ == "__main__":
-    print(get_news_text("주요", "📰", 130))
+    print(format_news("주요", "📰", get_headlines("주요"), 130))
     print()
-    print(get_news_text("경제", "💰", 200))
+    print(format_news("경제", "💰", get_headlines("경제"), 200))
