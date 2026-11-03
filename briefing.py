@@ -1,5 +1,6 @@
 """
-[매일 아침 실행할 메인 프로그램] 날씨·뉴스를 모아서 내 카톡으로 보내고, 요약 페이지도 만든다.
+[매일 아침 실행할 메인 프로그램] 날씨·뉴스를 모아 AI로 3줄 요약해서 내 카톡으로 보내고, 요약 페이지도 만든다.
+AI 요약이 실패하면 예전 방식(날씨+주요 뉴스, 경제 뉴스 메시지 2개)으로 자동 대체한다.
 
 실행 방법:
   python briefing.py --dry-run   → 카톡으로 보내지 않고 화면 + 요약 페이지 파일만 만듦 (테스트용)
@@ -11,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 from kakao_send import send_to_me
 from news import format_news, get_headlines
 from page import make_page
+from summarize import summarize
 from weather import get_weather_text
 
 KST = timezone(timedelta(hours=9))  # 한국 시간 (GitHub 서버는 다른 나라 시간이라 직접 지정)
@@ -44,19 +46,32 @@ weather = safe("날씨", get_weather_text, "⚠️ 오늘은 날씨 정보를 �
 top_news = safe("주요 뉴스", lambda: get_headlines("주요"), [])
 economy_news = safe("경제 뉴스", lambda: get_headlines("경제"), [])
 
-# 2) 요약 페이지 만들기 (뉴스 전체 + 링크)
+# 2) AI 3줄 요약 (실패하면 None → 아래에서 예전 방식으로 대체)
+ai_summary = safe("AI 요약", lambda: summarize(weather, top_news, economy_news), None)
+
+# 3) 요약 페이지 만들기 (맨 위 AI 요약 + 뉴스 전체 + 링크)
 page_path = make_page(f"{date_text} 아침 브리핑", weather, [
     ("📰 주요 뉴스", top_news),
     ("💰 경제 뉴스", economy_news),
-])
+], ai_summary)
 log(f"요약 페이지 생성: {page_path}")
 
-# 3) 카톡 메시지 만들기
-message1 = f"☀️ 좋은 아침! {date_text}\n\n{weather}\n\n"
-message1 += format_news("주요", "📰", top_news, LIMIT - len(message1))
-message2 = format_news("경제", "💰", economy_news, LIMIT)
+# 4) 카톡 메시지 만들기
+greeting = f"☀️ 좋은 아침! {date_text}\n\n"
+messages = []
+if ai_summary:
+    messages = [greeting + ai_summary + "\n\n👇 자세히 보기에서 전체 뉴스"]
+    if len(messages[0]) > LIMIT:
+        log(f"⚠️ AI 요약 메시지가 {LIMIT}자를 넘어서 예전 방식으로 대체해요.")
+        messages = []
 
-for number, message in enumerate([message1, message2], start=1):
+if not messages:  # AI 요약이 없거나 실패 → 예전 방식
+    log("예전 방식(메시지 2개)으로 보내요.")
+    message1 = greeting + f"{weather}\n\n"
+    message1 += format_news("주요", "📰", top_news, LIMIT - len(message1))
+    messages = [message1, format_news("경제", "💰", economy_news, LIMIT)]
+
+for number, message in enumerate(messages, start=1):
     log(f"메시지 {number} ({len(message)}자 / 최대 {LIMIT}자):\n{message}")
     if len(message) > LIMIT:
         raise SystemExit(f"❌ 메시지 {number}이 {LIMIT}자를 넘어서 보낼 수 없어요.")
@@ -64,5 +79,5 @@ for number, message in enumerate([message1, message2], start=1):
 if dry_run:
     log("🧪 미리보기 모드라서 전송하지 않았어요.")
 else:
-    send_to_me(message1)
-    send_to_me(message2)
+    for message in messages:
+        send_to_me(message)

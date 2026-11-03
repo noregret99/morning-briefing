@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 MODEL = "claude-haiku-5-5"  # 가장 저렴하고 빠른 Claude 모델
-MAX_CHARS = 170             # 카톡은 200자 제한 → 인사말(약 20자) 자리를 빼고 요약은 170자 안으로
+MAX_CHARS = 155             # 카톡은 200자 제한 → 인사말·안내 문구(약 40자) 자리를 빼고 요약은 155자 안으로
 MAX_TRIES = 2               # 너무 길면 "줄여줘"라고 한 번 더 부탁
 
 # AI에게 주는 '업무 지침서' (시스템 프롬프트). 매일 똑같이 쓴다.
